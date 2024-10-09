@@ -12,10 +12,38 @@ import (
     "go.mongodb.org/mongo-driver/bson"
     "go.mongodb.org/mongo-driver/bson/primitive"
     "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"	
+    "go.mongodb.org/mongo-driver/mongo/options"
+
+    "github.com/joho/godotenv"
+    "os"
+    "log"
 )
 
-const uri = "mongodb://localhost"
+var mongodbUrl string
+var mongodbName string
+var mongoCollectionName string
+
+func initSettings() {
+    err := godotenv.Load()
+    if err != nil {
+        log.Fatal("Error loading .env file")
+    }
+
+    mongodbUrl = os.Getenv("mongodb_url")
+    if mongodbUrl == "" {
+        log.Fatal("Set parameter 'mongodb_url' in .env file")
+    }
+
+    mongodbName = os.Getenv("mongodb_name")
+    if mongodbName == "" {
+        log.Fatal("Set parameter 'mongodb_name' in .env file")
+    }
+
+    mongoCollectionName = os.Getenv("mongocollection_name")
+    if mongoCollectionName == "" {
+        log.Fatal("Set parameter 'mongocollection_name' in .env file")
+    }
+}
 
 type Book struct {
     Id primitive.ObjectID `bson:"_id"`
@@ -27,7 +55,7 @@ type Book struct {
 
 func ShowBooks(writer http.ResponseWriter, request *http.Request) {
     serverAPI := options.ServerAPI(options.ServerAPIVersion1)
-    opts := options.Client().ApplyURI(uri).SetServerAPIOptions(serverAPI)
+    opts := options.Client().ApplyURI(mongodbUrl).SetServerAPIOptions(serverAPI)
 
     client, err := mongo.Connect(context.TODO(), opts)
     if err != nil {
@@ -40,7 +68,7 @@ func ShowBooks(writer http.ResponseWriter, request *http.Request) {
         }
     }()
 
-    coll := client.Database("maindb").Collection("books")
+    coll := client.Database(mongodbName).Collection(mongoCollectionName)
 
     filter := bson.D{{ "book", bson.D{{ "$exists", true}} }}
 
@@ -66,6 +94,8 @@ func ShowBooks(writer http.ResponseWriter, request *http.Request) {
 }
 
 func main() {
+    initSettings()
+
     http.HandleFunc("/books/", ShowBooks)
 
     err := http.ListenAndServe(":81", nil)
